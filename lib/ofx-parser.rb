@@ -1,4 +1,3 @@
-require 'rubygems'
 require 'hpricot'
 require 'time'
 require 'date'
@@ -56,10 +55,10 @@ module OfxParser
     # Returns a DateTime object. Milliseconds (XXX) are ignored.
     def self.parse_datetime(date)
       if /\A\s*
-          (\d{4})(\d{2})(\d{2})           ?# YYYYMMDD            1,2,3
-          (?:(\d{2})(\d{2})(\d{2}))?      ?# HHMMSS  - optional  4,5,6
-          (?:\.(\d{3}))?                  ?# .XXX    - optional  7
-          (?:\[([-+]?[\.\d]+)\:\w{3}\])?  ?# [-n:TZ] - optional  8,9
+          (\d{4})(\d{2})(\d{2})       ?# YYYYMMDD            1,2,3
+          (?:(\d{2})(\d{2})(\d{2}))?  ?# HHMMSS  - optional  4,5,6
+          (?:\.(\d{3}))?              ?# .XXX    - optional  7
+          (?:\[(-?\d+)\:\w{3}\])?     ?# [-n:TZ] - optional  8,9
           \s*\z/ix =~ date
         year = $1.to_i
         mon = $2.to_i
@@ -85,6 +84,9 @@ module OfxParser
       ofx.signup_account_info = build_info((doc/"SIGNUPMSGSRSV1/ACCTINFOTRNRS"))
       ofx.bank_account = build_bank((doc/"BANKMSGSRSV1/STMTTRNRS")) unless (doc/"BANKMSGSRSV1").empty?
       ofx.credit_card = build_credit((doc/"CREDITCARDMSGSRSV1/CCSTMTTRNRS")) unless (doc/"CREDITCARDMSGSRSV1").empty?
+      ofx.investment=build_investment((doc/"INVSTMTMSGSRSV1/INVSTMTTRNRS"))
+      
+      
       #build_investment((doc/"SIGNONMSGSRQV1"))
 
       ofx
@@ -177,9 +179,51 @@ module OfxParser
 
 
     def self.build_investment(doc)
+	  acct = InvestmentAccount.new
+	  acct.broker_id=(doc/"INVSTMTRS/INVACCTFROM/BROKERID").inner_text
+	  acct.cash_balance=(doc/"INVSTMTRS/INVBAL/AVAILCASH").inner_text
+	  
+	  statement = Statement.new
+	  acct.statement=statement
+	    
+	  statement.stock_positions = (doc/"INVSTMTRS/INVPOSLIST/POSSTOCK").collect do |p|
+	  	build_stock_position(p)
+  	  end
+  	  
+	  statement.opt_positions = (doc/"INVSTMTRS/INVPOSLIST/POSOPT").collect do |p|
+	  	build_opt_position(p)
+  	  end  	  
 
+	  acct
     end
 
+	def self.build_stock_position(p)
+	  stock_position = Stock_Position.new
+	  stock_position.uniqueid = (p/"INVPOS/SECID/UNIQUEID").inner_text
+	  stock_position.uniqueid_type = (p/"INVPOS/SECID/UNIQUEIDTYPE").inner_text
+	  stock_position.heldinacct = (p/"INVPOS/HELDINACCT").inner_text
+	  stock_position.type = (p/"INVPOS/POSTYPE").inner_text
+	  stock_position.units = (p/"INVPOS/UNITS").inner_text
+      stock_position.unitprice = (p/"INVPOS/UNITPRICE").inner_text	  
+	  stock_position.pricedate = parse_datetime((p/"INVPOS/DTPRICEASOF").inner_text)
+	  stock_position.memo = (p/"INVPOS/MEMO").inner_text
+	  stock_position
+	end
+
+	def self.build_opt_position(p)
+	  opt_position = Opt_Position.new
+	  opt_position.uniqueid = (p/"INVPOS/SECID/UNIQUEID").inner_text
+	  opt_position.uniqueid_type = (p/"INVPOS/SECID/UNIQUEIDTYPE").inner_text
+	  opt_position.heldinacct = (p/"INVPOS/HELDINACCT").inner_text
+	  opt_position.type = (p/"INVPOS/POSTYPE").inner_text
+	  opt_position.units = (p/"INVPOS/UNITS").inner_text
+      opt_position.unitprice = (p/"INVPOS/UNITPRICE").inner_text	  
+      opt_position.mktval = (p/"INVPOS/MKTVAL").inner_text
+	  opt_position.pricedate = parse_datetime((p/"INVPOS/DTPRICEASOF").inner_text)
+	  opt_position.memo = (p/"INVPOS/MEMO").inner_text
+	  opt_position
+	end
+	
     def self.build_status(doc)
       status = Status.new
       status.code = (doc/"CODE").inner_text

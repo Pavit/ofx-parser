@@ -1,13 +1,13 @@
 module OfxParser
   module MonetarySupport
+ # 	@@monies = []
+ #   @@monies ||= []
 
-    @@monies ||= []
-
-    class_extension do
-      def monetary_vars(*methods) #:nodoc:
-        @@monies += methods
-      end
-    end
+ #   class_extension do
+ #     def monetary_vars(*methods) #:nodoc:
+ #       @@monies += methods
+ #     end
+ #   end
 
     # Returns pennies for a given string amount, i.e:
     #  '-123.45' => -12345
@@ -69,15 +69,15 @@ module OfxParser
   end
 
   class Account
-    attr_accessor :number, :statement, :transaction_uid, :routing_number
+    attr_accessor :number, :statement, :transaction_uid
   end
 
   class BankAccount < Account
     TYPE = [:CHECKING, :SAVINGS, :MONEYMRKT, :CREDITLINE]
-    attr_accessor :type, :balance, :balance_date
+    attr_accessor :routing_number, :type, :balance, :balance_date
 
     include MonetarySupport
-    monetary_vars :balance
+    #monetary_vars :balance
 
     undef type
     def type
@@ -89,26 +89,26 @@ module OfxParser
     attr_accessor :remaining_credit, :remaining_credit_date, :balance, :balance_date
 
     include MonetarySupport
-    monetary_vars :remaining_credit, :balance
+#    monetary_vars :remaining_credit, :balance
   end
 
   class InvestmentAccount < Account
     attr_accessor :broker_id, :positions, :margin_balance, :short_balance, :cash_balance
 
-    include MonetarySupport
-    monetary_vars :margin_balance, :short_balance, :cash_balance
+   # include MonetarySupport
+#    monetary_vars :margin_balance, :short_balance, :cash_balance
   end
 
 
   class Statement
-    attr_accessor :currency, :transactions, :start_date, :end_date
+    attr_accessor :currency, :transactions, :start_date, :end_date, :stock_positions, :opt_positions
   end
 
   class Transaction
     attr_accessor :type, :date, :amount, :fit_id, :check_number, :sic, :memo, :payee
 
     include MonetarySupport
-    monetary_vars :amount
+ #   monetary_vars :amount
 
     TYPE = {
       :CREDIT      => "Generic credit",
@@ -149,8 +149,14 @@ module OfxParser
     end
   end
 
-  class Position
+  class Stock_Position
+  	attr_accessor :uniqueid, :uniqueid_type, :heldinacct, :type, :units, :unitprice, :pricedate, :memo	
   end
+  
+   class Opt_Position
+  	attr_accessor :uniqueid, :uniqueid_type, :heldinacct, :type, :units, :unitprice, :pricedate, :memo, :mktval	
+  end 
+
 
   # Status of a sign on
   class Status
